@@ -2,7 +2,7 @@
 
 ## 1. هدف این مستند
 
-این مستند معماری بک‌اند پروژه‌ی **Flash Sale** را بر اساس الزامات فایل `01-challenge-v3-sendaaa` و ساختار فعلی پوشه‌ی `api` توضیح می‌دهد.
+این مستند معماری بک‌اند پروژه‌ی **Flash Sale** را بر اساس الزامات فایل `01-challenge-v3-sendaaa` و ساختار پوشه‌ی `apps/api` توضیح می‌دهد. تصمیم‌های نهایی و محل دقیق پیاده‌سازی در `ARCHITECTURE.md` در ریشه‌ی ریپو ثبت شده‌اند.
 
 هدف سیستم این است که در زمان هجوم درخواست‌های خرید:
 
@@ -29,9 +29,9 @@
 | Rate limiting | NestJS Throttler + Redis storage | محدودیت نرخ درخواست‌ها؛ شمارنده‌ها در Redis مشترک نگهداری می‌شوند تا بین Replicaها هماهنگ باشند |
 | Cache / shared store | Redis | storage مشترک Throttler و در صورت نیاز کش |
 | Live updates | SSE | ارسال تغییرات وضعیت سفارش به کلاینت |
-| Local execution | Docker Compose | اجرای سرویس‌ها و وابستگی‌ها؛ جزئیات در `docker/DOCKER.md` |
+| Local execution | Docker Compose | اجرای سرویس‌ها و وابستگی‌ها؛ جزئیات در `docs/DOCKER.md` |
 | Frontend | Next.js (با تأیید کارفرما) | چالش Nuxt 3 را ذکر کرده؛ انتخاب Next.js با تأیید خود کارفرما انجام شده و در README ثبت می‌شود |
-| Testing | ابزار تست موجود در پروژه | قراردادهای تست در بخش 12؛ ابزار نهایی باید با `package.json` تأیید شود |
+| Testing | Jest + Testcontainers | قراردادهای تست در بخش 12 |
 
 ### چرا RabbitMQ به‌جای Kafka؟
 
@@ -39,75 +39,80 @@
 
 RabbitMQ به‌تنهایی تضمین نمی‌کند که پیام گم نشود یا فقط یک بار پردازش شود. قابلیت اطمینان باید با Outbox، تأیید دریافت پیام، retry، مدیریت پیام‌های ناموفق و مصرف‌کننده‌ی idempotent پیاده‌سازی شود.
 
-برای delayed delivery رزروها، روش نهایی باید با تنظیمات واقعی Broker و Docker Compose مستند شود. اگر از افزونه‌ی `x-delayed-message` استفاده می‌شود، وجود و فعال بودن آن باید در محیط اجرا تأیید شود؛ در غیر این صورت باید راهکار جایگزین قابل اتکا تعریف شود.
+برای delayed delivery رزروها از صف TTL به‌همراه dead-letter exchange استفاده شده است و افزونه‌ی `x-delayed-message` لازم نیست؛ جزئیات در بخش ۵ از `ARCHITECTURE.md`.
 
-## 3. ساختار ریشه‌ی ریپو و پوشه‌ی `api`
+## 3. ساختار ریشه‌ی ریپو و پوشه‌ی `apps/api`
 
-ریشه‌ی ریپو از سه بخش تشکیل می‌شود:
+ریشه‌ی ریپو یک monorepo با pnpm و Turborepo است:
 
 ```text
 <repo>/
-├── api/      # بک‌اند NestJS (Order و Inventory)
-├── web/      # فرانت‌اند Next.js (جزئیات در FRONTEND_ARCHITECTURE.md)
-└── docker/   # compose.yml، .env.example و DOCKER.md
+├── apps/api/   # بک‌اند NestJS: دو سرویس مستقل Order و Inventory
+├── apps/web/   # فرانت‌اند Next.js (جزئیات در FRONTEND_ARCHITECTURE.md)
+├── docker/     # compose.yml، compose.dev.yml، nginx/، .env.example
+├── docs/       # همین مستندها و DOCKER.md
+└── scripts/    # load-test.mjs
 ```
 
-ساختار فعلی پوشه‌ی `api`:
-
-ساختار فعلی که برای این مستند ارائه شده است:
+ساختار پوشه‌ی `apps/api`:
 
 ```text
-api/
+apps/api/
 ├── src/
-│   ├── common/
+│   ├── common/                  # فقط زیرساخت مشترک
 │   │   ├── @types/
-│   │   ├── abstracts/
-│   │   ├── constants/
-│   │   ├── decorators/
-│   │   ├── filter/
-│   │   ├── modules/
-│   │   ├── services/
-│   │   └── utils/
-│   ├── config/
-│   │   ├── data-source.ts
-│   │   ├── swagger.config.ts
-│   │   ├── typeorm.config.ts
-│   │   └── validation-pipe.config.ts
-│   ├── modules/
-│   ├── seed/
-│   ├── app.module.ts
-│   └── main.ts
-├── test/
-├── .env.example
-├── .prettierrc
-├── README.md
-├── eslint.config.mjs
-├── nest-cli.json
-├── package.json
-├── tsconfig.build.json
-└── tsconfig.json
+│   │   ├── auth/                # JWT guard، decoratorها
+│   │   ├── bootstrap/           # ساخت و پیکربندی اپ HTTP
+│   │   ├── config/              # اعتبارسنجی env، ValidationPipe، مسیر .env
+│   │   ├── database/            # گزینه‌های Postgres، migration زیر advisory lock
+│   │   ├── exceptions/
+│   │   ├── filter/              # Exception filter سراسری
+│   │   ├── health/
+│   │   ├── logging/
+│   │   ├── messaging/           # قراردادها، RabbitMQ، outbox، inbox
+│   │   ├── redis/
+│   │   ├── throttling/
+│   │   └── validation/
+│   ├── order/
+│   │   ├── main.ts              # entry point سرویس Order
+│   │   ├── order-app.module.ts
+│   │   ├── config/              # env، data source و TypeORM مخصوص order_db
+│   │   ├── messaging/           # توپولوژی صف‌های Order
+│   │   ├── migrations/
+│   │   └── modules/{auth,orders,products,payments}/
+│   └── inventory/
+│       ├── main.ts              # entry point سرویس Inventory
+│       ├── inventory-app.module.ts
+│       ├── config/              # env، data source و TypeORM مخصوص inventory_db
+│       ├── messaging/
+│       ├── migrations/
+│       ├── modules/stock/
+│       └── seed/                # seed idempotent محصول ثابت
+├── test/                        # تست‌های e2e با Testcontainers
+├── Dockerfile                   # یک ایمیج، دو دستور اجرا
+├── tsconfig.json                # strict، path aliasهای @common، @order و @inventory
+└── tsconfig.commonjs.json       # برای ts-node (seed و migration) و Jest e2e
 ```
 
-این فهرست، ساختار اعلام‌شده‌ی فعلی است و به‌تنهایی وجود تمام قابلیت‌های چالش را ثابت نمی‌کند. وجود یا وضعیت پیاده‌سازی JWT، RabbitMQ، Outbox، SSE، Rate Limit و تست‌ها باید با بررسی کد تأیید شود.
+هر سرویس entry point، DataSource، migration و اتصال دیتابیس جدای خودش را دارد و در Docker به‌صورت سرویس جدا اجرا می‌شود.
 
 ## 4. مسئولیت پوشه‌های اصلی
 
-### `src/main.ts`
+### `src/order/main.ts` و `src/inventory/main.ts`
 
-نقطه‌ی ورود برنامه‌ی NestJS. طبق ساختار اعلام‌شده، `ValidationPipe` سراسری در این نقطه پیکربندی می‌شود. تنظیمات واقعی bootstrap، prefix مسیرها، فیلتر خطا و Guardهای ثبت‌شده باید با کد موجود تطبیق داده شوند.
+entry point هر سرویس: env را اعتبارسنجی می‌کند، migrationها را زیر `pg_advisory_lock` اجرا می‌کند (Inventory بعد از آن seed را هم اجرا می‌کند)، و اپ را با `helmet`، `ValidationPipe`، Exception filter سراسری، لاگ JSON و shutdown hookها بالا می‌آورد.
 
-### `src/app.module.ts`
+### `src/order/order-app.module.ts` و `src/inventory/inventory-app.module.ts`
 
-ماژول ریشه که ماژول‌های سطح برنامه و پیکربندی‌های لازم را به هم متصل می‌کند.
+ماژول ریشه‌ی هر سرویس. Guardهای سراسری Order به این ترتیب ثبت شده‌اند: Rate limit بر اساس IP، سپس JWT، سپس Rate limit بر اساس کاربر.
 
-### `src/config/`
+### `src/<service>/config/`
 
-- `data-source.ts`: تنظیم Data Source مورد استفاده‌ی TypeORM و ابزارهای مرتبط.
-- `typeorm.config.ts`: تنظیمات اتصال و رفتار TypeORM.
-- `swagger.config.ts`: پیکربندی مستندات API.
-- `validation-pipe.config.ts`: پیکربندی ValidationPipe.
+- `*-environment.ts`: کلاس اعتبارسنجی env همان سرویس.
+- `*-database.config.ts`: گزینه‌های اتصال و فهرست entityها.
+- `*.data-source.ts`: DataSource برای CLI تایپ‌اورم (`pnpm migration:generate:order` و `pnpm migration:generate:inventory`).
 
-این فایل‌ها باید تنظیمات هر سرویس را به‌درستی از environment دریافت کنند. مقادیر محرمانه نباید در سورس یا فایل‌های commit‌شده قرار گیرند.
+ValidationPipe در `src/common/config/validation-pipe.config.ts` تعریف شده است (`whitelist`، `forbidNonWhitelisted`، `transform`). مقادیر محرمانه فقط از env خوانده می‌شوند.
 
 ### `src/common/`
 
@@ -137,9 +142,9 @@ api/
 
 نام‌گذاری و حروف بزرگ/کوچک پوشه‌ها باید با conventions واقعی ریپو یکسان بماند. هر ماژول می‌تواند فایل‌های اختصاصی دیگری مانند module definition، event handler یا tests داشته باشد؛ این فایل‌ها باید متناسب با نیاز واقعی اضافه شوند.
 
-### `src/seed/`
+### `src/inventory/seed/`
 
-داده‌های اولیه‌ی مورد نیاز توسعه و تست. Seed محصول باید idempotent باشد؛ اجرای دوباره‌ی آن نباید محصول یا داده‌ی تکراری بسازد. محصول مورد انتظار چالش:
+داده‌های اولیه‌ی مورد نیاز توسعه و تست؛ با `pnpm --filter api seed` یا خودکار هنگام بالا آمدن Inventory اجرا می‌شود. Seed محصول باید idempotent باشد؛ اجرای دوباره‌ی آن نباید محصول یا داده‌ی تکراری بسازد. محصول مورد انتظار چالش:
 
 - شناسه: `11111111-1111-1111-1111-111111111111`
 - موجودی اولیه: `500`
@@ -226,7 +231,7 @@ Inventory Service باید دیتابیس مستقل خودش را داشته ب
 - لغو یا انقضای رزرو، موجودی را دقیقاً به اندازه‌ی رزرو مربوطه آزاد کند.
 - پردازش دوباره‌ی یک پیام باعث رزرو یا آزادسازی تکراری نشود.
 
-**مستند تحویل باید محل دقیق قفل را با قالب `file:line` اعلام کند.** این مسیر باید پس از پیاده‌سازی واقعی ثبت شود؛ نباید از قبل یا به‌صورت حدسی نوشته شود.
+**محل دقیق قفل:** `apps/api/src/inventory/modules/stock/repository/stock.repository.ts:24` (`setLock('pessimistic_write')` → `SELECT … FOR UPDATE`). توضیح کامل و دلیل درستی آن در چند instance در بخش ۳ از `ARCHITECTURE.md` آمده است.
 
 ## 8. Idempotency، Outbox و پیام‌رسانی
 
@@ -382,31 +387,31 @@ Assertions پیشنهادی:
 
 ### Test Runner
 
-نام ابزار تست از روی ساختار پوشه به‌تنهایی قابل تعیین نیست. پیش از نوشتن دستورهای اجرا، `package.json` و فایل‌های تنظیمات تست باید بررسی شوند. قرارداد اصلی، نتیجه‌ی تست‌هاست؛ نه انتخاب یک کتابخانه‌ی تست خاص.
+Jest. تست‌های واحد با `pnpm --filter api test` و تست‌های e2e با `pnpm --filter api test:e2e` اجرا می‌شوند. تست‌های e2e با Testcontainers دو PostgreSQL، Redis و RabbitMQ واقعی بالا می‌آورند و Order و Inventory را به‌صورت اپ‌های جدا و در چند Replica اجرا می‌کنند. نگاشت تست‌ها به الزامات در `README.md` آمده است.
 
 ## 13. Docker Compose و اجرای محلی
 
 محیط باید با یک دستور مستندشده بالا بیاید و در شرایط مورد انتظار چالش، شروع سرویس‌ها کمتر از دو دقیقه طول بکشد. جزئیات سرویس‌ها، پورت‌ها و متغیرهای محیطی در `docker/DOCKER.md` آمده است.
 
-**وضعیت فعلی:** `docker/compose.yml` فقط زیرساخت را بالا می‌آورد: `postgres` (Order DB)، `postgres-inventory` (Inventory DB)، `redis` و `rabbitmq`. اپ‌های NestJS و Next.js فعلاً با `pnpm` روی ماشین توسعه اجرا می‌شوند.
+**وضعیت فعلی:** `docker/compose.yml` کل سیستم را بالا می‌آورد: زیرساخت، `order`، `inventory`، `web` و gateway ‏nginx. فقط gateway پورت host دارد.
 
-**پیش از تحویل:** سرویس‌های `order`، `inventory` و `web` به compose اضافه می‌شوند. `order` پورت ثابت host ندارد و جلوی Replicaهایش یک load balancer (مثلاً nginx با `proxy_buffering off` برای SSE) قرار می‌گیرد تا `docker compose up --scale order=3` کار کند. `inventory` اصلاً `ports` ندارد.
+`order` پورت ثابت host ندارد و جلوی Replicaهایش nginx با `proxy_buffering off` برای SSE قرار دارد، پس `docker compose up --scale order=3` کار می‌کند. `inventory` اصلاً `ports` ندارد.
 
-**Delayed delivery (انقضای ۵ دقیقه):** راهکار پیش‌فرض این پروژه، صف TTL به‌همراه dead-letter exchange است که به افزونه‌ی اضافه نیاز ندارد و روی ایمیج رسمی `rabbitmq` کار می‌کند. اگر به `x-delayed-message` تغییر داده شود، باید ایمیج سفارشی ساخته و این سند و `ARCHITECTURE.md` به‌روز شوند.
+**Delayed delivery (انقضای ۵ دقیقه):** صف TTL به‌همراه dead-letter exchange که روی ایمیج رسمی `rabbitmq` و بدون افزونه کار می‌کند.
 
 چک‌لیست:
 
-- [ ] Order Service و Inventory Service مستقل اجرا می‌شوند.
-- [ ] هر سرویس دیتابیس مجزا دارد (`order_db` و `inventory_db`).
-- [ ] Redis برای Throttler در دسترس است.
-- [ ] RabbitMQ در شبکه‌ی مورد نیاز سرویس‌ها در دسترس است.
-- [ ] پورت Inventory به host منتشر نشده است.
-- [ ] health check و ترتیب آمادگی وابستگی‌ها در نظر گرفته شده‌اند.
-- [ ] seed محصول با شناسه‌ی ثابت و موجودی ۵۰۰ idempotent است.
-- [ ] متغیرهای محیطی در `.env.example` مستند شده‌اند، `JWT_SECRET` بین دو سرویس یکسان است و secret واقعی commit نشده است.
-- [ ] مسیر فایل `.env` که compose و اپ‌ها می‌خوانند مشخص و در `docker/DOCKER.md` ثبت شده است.
-- [ ] `docker ps` نشان می‌دهد Inventory پورت host ندارد.
-- [ ] چند Replica از Order Service بدون وابستگی به حافظه‌ی محلی کار می‌کنند.
+- [x] Order Service و Inventory Service مستقل اجرا می‌شوند.
+- [x] هر سرویس دیتابیس مجزا دارد (`order_db` و `inventory_db`).
+- [x] Redis برای Throttler در دسترس است.
+- [x] RabbitMQ در شبکه‌ی مورد نیاز سرویس‌ها در دسترس است.
+- [x] پورت Inventory به host منتشر نشده است.
+- [x] health check و ترتیب آمادگی وابستگی‌ها در نظر گرفته شده‌اند.
+- [x] seed محصول با شناسه‌ی ثابت و موجودی ۵۰۰ idempotent است.
+- [x] متغیرهای محیطی در `.env.example` مستند شده‌اند، `JWT_SECRET` بین دو سرویس یکسان است و secret واقعی commit نشده است.
+- [x] مسیر فایل `.env` که compose و اپ‌ها می‌خوانند (`docker/.env`) مشخص و در `docs/DOCKER.md` ثبت شده است.
+- [x] `docker ps` نشان می‌دهد Inventory پورت host ندارد.
+- [x] چند Replica از Order Service بدون وابستگی به حافظه‌ی محلی کار می‌کنند.
 
 ## 14. فایل‌های مستندات تحویل
 
@@ -442,4 +447,4 @@ Assertions پیشنهادی:
 
 ## منابع و محدودیت این مستند
 
-این مستند بر اساس الزامات فایل چالش و ساختاری نوشته شده که از پوشه‌ی `api` اعلام شده است. کد کامل پروژه در این مرحله بررسی نشده؛ بنابراین وجود یا تکمیل بودن قابلیت‌ها از روی نام پوشه‌ها فرض نشده است. هر تصمیمی که نیازمند بررسی کد واقعی است، در بخش مربوطه صریحاً مشخص شده است.
+این مستند بر اساس الزامات فایل چالش نوشته و پس از پیاده‌سازی با کد واقعی هماهنگ شد. پوشه‌ی `api` در نسخه‌ی اولیه‌ی این مستند در واقع `apps/api` است و کد قبلی آن از پروژه‌ی دیگری باقی مانده بود که حذف و جایگزین شد.
