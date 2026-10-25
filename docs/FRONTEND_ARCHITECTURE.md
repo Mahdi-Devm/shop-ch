@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-This document describes the frontend structure, component organization, and development conventions of the `web` application.
+This document describes the frontend structure, component organization, and development conventions of the web application in `apps/web`.
 
 The project combines **Feature-Based Architecture** and **Layered Architecture**. The goal is to keep feature-specific code organized, make shared code reusable, and keep responsibilities clear.
 
@@ -11,46 +11,41 @@ This document describes the structure provided by the project team. Where a conv
 ## 2. Project Structure
 
 ```text
-web/
+apps/web/
 ├── .storybook/
 ├── public/
 ├── src/
 │   ├── app/
-│   ├── core/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   │   └── custom/
-│   │   │       ├── block/
-│   │   │       └── ui/
-│   │   ├── features/
-│   │   │   ├── auth/
-│   │   │   ├── shop/
-│   │   │   └── ...
-│   │   ├── hooks/
-│   │   ├── lib/
-│   │   └── utils/
-│   └── features/
-│       └── example/  # Placeholder/example structure only; not a real product feature
-│           ├── assets/
-│           ├── components/
-│           │   ├── block/
-│           │   └── ui/
-│           ├── hook/
-│           ├── lib/
-│           └── utils/
-├── .gitignore
-├── README.md
+│   │   ├── globals.css            # design tokens and global styles
+│   │   ├── layout.tsx             # RTL Persian layout, AuthProvider
+│   │   ├── page.tsx               # redirects to /product
+│   │   ├── login/page.tsx
+│   │   ├── product/page.tsx
+│   │   └── orders/[id]/page.tsx
+│   └── core/
+│       ├── assets/
+│       ├── components/
+│       │   ├── custom/{block,ui}/
+│       │   └── shadcn/ui/
+│       ├── features/
+│       │   ├── auth/              # mock login, session store, AuthProvider
+│       │   ├── shop/              # product stock, Quick Buy
+│       │   ├── orders/            # live order status over SSE
+│       │   └── example/           # placeholder only; not a product feature
+│       ├── hooks/
+│       ├── lib/
+│       │   ├── api/api-client.ts  # shared typed fetch client
+│       │   └── basic-link/
+│       └── utils/
+├── Dockerfile
 ├── components.json
 ├── eslint.config.mjs
-├── next.config.ts
+├── next.config.ts                 # output: standalone
 ├── package.json
-├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
-├── postcss.config.mjs
 └── tsconfig.json
 ```
 
-The tree reflects the structure described so far. Feature directories such as `auth/` and `shop/` are examples of actual feature names and should only be listed when they exist in the repository. `example/` is a placeholder used to demonstrate the feature structure, not a required product feature.
+`example/` is a placeholder used to demonstrate the feature structure, not a product feature. It lives at `src/core/features/example/`, not `src/features/example/` as earlier versions of this document said.
 
 ## 3. Application Layer — `src/app/`
 
@@ -95,7 +90,7 @@ The project uses shadcn/ui. The exact physical location of generated shadcn comp
 
 Contains the application's actual feature modules, for example `auth/`, `shop/`, and other product features as they are added.
 
-Each feature should keep its own related implementation and resources together. Do not treat the placeholder `src/features/example/` as an actual product feature.
+Each feature should keep its own related implementation and resources together. Do not treat the placeholder `src/core/features/example/` as an actual product feature.
 
 ### 4.4. `core/hooks/`
 
@@ -172,6 +167,8 @@ Keep state close to the components or features that need it, and follow existing
 
 API-related code is organized within the relevant feature.
 
+All HTTP calls go through `src/core/lib/api/api-client.ts`, which reads `NEXT_PUBLIC_API_URL` (empty in Docker, where the API is same-origin behind the gateway) and resolves every call to a typed result carrying the status, the error `code` and `Retry-After` instead of throwing. Each feature wraps the calls it owns in `lib/<feature>-api.ts`.
+
 When adding API functionality:
 
 1. Identify the feature that owns the functionality.
@@ -190,8 +187,9 @@ Only two pages are graded:
 
 | Route | Suggested file | Owning feature |
 |---|---|---|
-| `/product` | `src/app/product/page.tsx` | `core/features/shop/` |
-| `/orders/[id]` | `src/app/orders/[id]/page.tsx` | `core/features/orders/` |
+| `/product` | `src/app/product/page.tsx` | `core/features/shop/` (`ProductPanel`, `useProductStock`, `useQuickBuy`) |
+| `/orders/[id]` | `src/app/orders/[id]/page.tsx` | `core/features/orders/` (`OrderTracker`, `useOrderStatus`) |
+| `/login` | `src/app/login/page.tsx` | `core/features/auth/` (`LoginForm`) |
 
 Pages stay thin and compose feature components. A mock-login flow belongs to `core/features/auth/`. Verify the actual feature folders in the repository before creating new ones.
 
@@ -227,7 +225,7 @@ The seeded product id is `11111111-1111-1111-1111-111111111111`. Base URL comes 
 
 ### 10.4. Token handling
 
-The access token is used for both the `Authorization` header and the SSE query string. Decide one storage approach (for example in-memory state plus a persisted copy) and document it in the `auth` feature. Never log the token or put it in client-visible logs.
+The access token is used for both the `Authorization` header and the SSE query string. It is kept in memory behind `AuthProvider` with a `sessionStorage` copy for reloads; the decision and its trade-offs are documented in `src/core/features/auth/README.md`. Never log the token or put it in client-visible logs.
 
 ## 11. Global and Feature-local Utilities
 
@@ -236,6 +234,10 @@ Use `core/utils/` for utilities intended to be shared across the application.
 Use a feature's local `utils/` directory for utilities used only by that feature.
 
 Similarity between two helpers does not automatically mean they should be merged. Scope and ownership determine placement.
+
+## 11a. Design System
+
+Colors, radius and typography come only from the tokens in `src/app/globals.css` (for example `bg-card`, `bg-primary`, `bg-secondary`, `bg-accent`, `text-muted-foreground`, `text-destructive`). The UI copy is Persian and the layout is RTL, following `src/app/layout.tsx`.
 
 ## 12. Storybook
 
@@ -268,7 +270,7 @@ The frontend currently has no established test suite. Do not assume that a speci
 
 1. Inspect the existing repository before creating directories or files.
 2. Place actual application features under `src/core/features/`.
-3. Treat `src/features/example/` as a placeholder/example structure only; do not implement product functionality there unless explicitly instructed.
+3. Treat `src/core/features/example/` as a placeholder/example structure only; do not implement product functionality there unless explicitly instructed.
 4. Keep feature-specific code and resources within the owning feature.
 5. Use shared `core` resources only when they are genuinely shared.
 6. Use `block/` for larger UI sections and `ui/` for smaller components.
