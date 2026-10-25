@@ -11,7 +11,7 @@ import {
   retryQueueName,
 } from '@common/messaging/rabbitmq/queue-topology';
 import { RabbitMqConnection } from '@common/messaging/rabbitmq/rabbitmq.connection';
-import type { OnApplicationShutdown } from '@nestjs/common';
+import type { BeforeApplicationShutdown } from '@nestjs/common';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ChannelWrapper } from 'amqp-connection-manager';
@@ -34,7 +34,7 @@ function errorMessage(error: unknown): string {
 }
 
 @Injectable()
-export class RabbitMqConsumer implements OnApplicationShutdown {
+export class RabbitMqConsumer implements BeforeApplicationShutdown {
   private readonly logger = new Logger('RabbitMqConsumer');
   private readonly channels: ChannelWrapper[] = [];
 
@@ -73,7 +73,7 @@ export class RabbitMqConsumer implements OnApplicationShutdown {
     return channel;
   }
 
-  async onApplicationShutdown(): Promise<void> {
+  async beforeApplicationShutdown(): Promise<void> {
     await Promise.all(this.channels.map((channel) => channel.close()));
   }
 

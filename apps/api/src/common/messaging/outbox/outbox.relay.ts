@@ -1,8 +1,8 @@
 import type { BaseEnvironment } from '@common/config/base-environment';
 import { RabbitMqPublisher } from '@common/messaging/rabbitmq/rabbitmq.publisher';
 import type {
+  BeforeApplicationShutdown,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
 } from '@nestjs/common';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,7 +15,7 @@ const MAX_ERROR_LENGTH = 500;
 
 @Injectable()
 export class OutboxRelay
-  implements OnApplicationBootstrap, OnApplicationShutdown
+  implements OnApplicationBootstrap, BeforeApplicationShutdown
 {
   private readonly logger = new Logger(OutboxRelay.name);
   private running = false;
@@ -33,7 +33,7 @@ export class OutboxRelay
     this.loop = this.run();
   }
 
-  async onApplicationShutdown(): Promise<void> {
+  async beforeApplicationShutdown(): Promise<void> {
     this.running = false;
     this.wakeUp?.();
     await this.loop;
