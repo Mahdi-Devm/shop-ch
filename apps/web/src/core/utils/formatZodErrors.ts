@@ -1,6 +1,9 @@
-export function formatZodErrors(errors: any) {
-  if (errors && errors.issues && errors.issues.length > 0) {
-    return `${errors.issues[0].message}`;
+type ValidationIssues = { issues?: { message: string }[] } | null | undefined;
+
+export function formatZodErrors(errors: ValidationIssues) {
+  const firstIssue = errors?.issues?.[0];
+  if (firstIssue) {
+    return `${firstIssue.message}`;
   } else {
     return "خطا در اعتبارسنجی فرم";
   }

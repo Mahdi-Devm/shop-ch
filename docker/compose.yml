@@ -1,47 +1,179 @@
+name: flash-sale
+
+x-api-image: &api-image
+  image: flash-sale-api:local
+  build:
+    context: ..
+    dockerfile: apps/api/Dockerfile
+
+x-service-environment: &service-environment
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-log}
+  JWT_SECRET: ${JWT_SECRET}
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+  OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-200}
+  MESSAGE_MAX_RETRIES: ${MESSAGE_MAX_RETRIES:-5}
+  MESSAGE_RETRY_DELAY_MS: ${MESSAGE_RETRY_DELAY_MS:-1000}
+
 services:
   postgres:
     image: postgres:17-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "15432:5432"
+    command: ["postgres", "-c", "max_connections=200"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   postgres-inventory:
     image: postgres:17-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${INVENTORY_DB}
-    ports:
-      - "15433:5432"
     volumes:
       - postgres_inventory_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${INVENTORY_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:8-alpine
-    restart: always
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  inventory:
+    <<: *api-image
+    command: ["node", "dist/inventory/main.js"]
+    restart: unless-stopped
+    environment:
+      <<: *service-environment
+      PORT_INVENTORY: 3002
+      INVENTORY_DB_HOST: postgres-inventory
+      INVENTORY_DB_PORT: 5432
+      INVENTORY_DB: ${INVENTORY_DB}
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  order:
+    <<: *api-image
+    command: ["node", "dist/order/main.js"]
+    restart: unless-stopped
+    environment:
+      <<: *service-environment
+      PORT_ORDER: 3001
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-3600}
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:8080}
+      THROTTLE_IP_LIMIT: ${THROTTLE_IP_LIMIT:-10}
+      THROTTLE_USER_LIMIT: ${THROTTLE_USER_LIMIT:-5}
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-1000}
+      RESERVATION_TTL_MS: ${RESERVATION_TTL_MS:-300000}
+      IDEMPOTENCY_KEY_TTL_HOURS: ${IDEMPOTENCY_KEY_TTL_HOURS:-24}
+      ENABLE_DEV_PAYMENT: ${ENABLE_DEV_PAYMENT:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  web:
+    image: flash-sale-web:local
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ""
+        NEXT_PUBLIC_ENABLE_DEV_PAYMENT: ${ENABLE_DEV_PAYMENT:-false}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  gateway:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${PUBLIC_PORT:-8080}:80"
+    depends_on:
+      order:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  load-test:
+    <<: *api-image
+    profiles: ["tools"]
+    command: ["node", "/scripts/load-test.mjs"]
+    environment:
+      TARGET_HOST: order
+      TARGET_PORT: 3001
+      BUYERS: ${BUYERS:-200}
+    volumes:
+      - ../scripts:/scripts:ro
 
 volumes:
   postgres_data:

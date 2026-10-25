@@ -35,6 +35,8 @@ coverage
 .DS_Store
 Thumbs.db
 
+.env
+**/.env
 .env.local
 .env.development
 .env.test
@@ -43,3 +45,8 @@ Thumbs.db
 # Docker
 Dockerfile*
 docker-compose*.yml
+
+# Tests and local tooling
+.agents
+**/test
+**/*.spec.ts

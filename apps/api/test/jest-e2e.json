@@ -4,10 +4,26 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.commonjs.json"
+      }
+    ]
   },
   "moduleNameMapper": {
-    "^@auth/(.*)$": "<rootDir>/../src/modules/auth/$1",
-    "^@common/(.*)$": "<rootDir>/../src/common/$1"
-  }
+    "^@common/(.*)$": "<rootDir>/../src/common/$1",
+    "^@order/(.*)$": "<rootDir>/../src/order/$1",
+    "^@inventory/(.*)$": "<rootDir>/../src/inventory/$1"
+  },
+  "globalSetup": "<rootDir>/support/global-setup.ts",
+  "globalTeardown": "<rootDir>/support/global-teardown.ts",
+  "setupFiles": [
+    "reflect-metadata",
+    "<rootDir>/support/load-test-environment.ts"
+  ],
+  "testTimeout": 180000,
+  "transformIgnorePatterns": [
+    "node_modules/(?!\\.pnpm/promise-breaker|promise-breaker)"
+  ]
 }

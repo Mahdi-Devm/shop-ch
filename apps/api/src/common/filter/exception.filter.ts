@@ -1,3 +1,4 @@
+import { isInfrastructureUnavailable } from '@common/exceptions/is-infrastructure-unavailable';
 import {
   ArgumentsHost,
   Catch,
@@ -6,71 +7,85 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
-import { QueryFailedError } from 'typeorm';
+import type { Request, Response } from 'express';
 
-const REASON: Record<number, string> = {
-  [HttpStatus.BAD_REQUEST]: 'Bad Request',
-  [HttpStatus.UNAUTHORIZED]: 'Unauthorized',
-  [HttpStatus.FORBIDDEN]: 'Forbidden',
-  [HttpStatus.NOT_FOUND]: 'Not Found',
-  [HttpStatus.CONFLICT]: 'Conflict',
-  [HttpStatus.TOO_MANY_REQUESTS]: 'Too Many Requests',
-  [HttpStatus.INTERNAL_SERVER_ERROR]: 'Internal Server Error',
+const DEFAULT_CODES: Record<number, string> = {
+  [HttpStatus.BAD_REQUEST]: 'BAD_REQUEST',
+  [HttpStatus.UNAUTHORIZED]: 'UNAUTHORIZED',
+  [HttpStatus.FORBIDDEN]: 'FORBIDDEN',
+  [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
+  [HttpStatus.METHOD_NOT_ALLOWED]: 'METHOD_NOT_ALLOWED',
+  [HttpStatus.CONFLICT]: 'CONFLICT',
+  [HttpStatus.PAYLOAD_TOO_LARGE]: 'PAYLOAD_TOO_LARGE',
+  [HttpStatus.TOO_MANY_REQUESTS]: 'RATE_LIMITED',
+  [HttpStatus.INTERNAL_SERVER_ERROR]: 'INTERNAL_ERROR',
+  [HttpStatus.SERVICE_UNAVAILABLE]: 'SERVICE_UNAVAILABLE',
 };
 
-function statusReason(status: number): string {
-  return REASON[status] ?? 'Error';
+type ErrorResponseBody = { code: string } & Record<string, unknown>;
+
+function defaultCode(status: number): string {
+  return DEFAULT_CODES[status] ?? 'ERROR';
 }
 
-type ValidationErrorBody = {
-  message: string;
-  errors?: Record<string, string[]>;
-};
+function bodyFromHttpException(exception: HttpException): ErrorResponseBody {
+  const status = exception.getStatus();
+  const response = exception.getResponse();
+
+  if (typeof response === 'string') {
+    return { code: defaultCode(status), message: response };
+  }
+
+  const responseFields = response as Record<string, unknown>;
+  if (typeof responseFields.code === 'string') {
+    return { ...responseFields, code: responseFields.code };
+  }
+
+  const message =
+    typeof responseFields.message === 'string'
+      ? responseFields.message
+      : exception.message;
+  return { code: defaultCode(status), message };
+}
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const context = host.switchToHttp();
+    const response = context.getResponse<Response>();
+    const request = context.getRequest<Request>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
-    let errors: Record<string, string[]> | undefined;
+    if (response.headersSent) {
+      return;
+    }
 
     if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      const res = exception.getResponse();
-
-      if (typeof res === 'string') {
-        message = res;
-      } else if (typeof res === 'object' && res !== null) {
-        const body = res as ValidationErrorBody & { error?: string };
-        message =
-          typeof body.message === 'string' ? body.message : 'Request failed';
-        errors = body.errors;
-      }
-    } else if (exception instanceof QueryFailedError) {
-      status = HttpStatus.BAD_REQUEST;
-      message = 'Database error occurred';
+      response
+        .status(exception.getStatus())
+        .json(bodyFromHttpException(exception));
+      return;
     }
 
-    // Never leak internal details for unexpected errors
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      this.logger.error(
-        `Unhandled exception on ${request.method} ${request.url}`,
-        exception instanceof Error ? exception.stack : undefined,
+    const path = request.originalUrl.split('?')[0];
+
+    if (isInfrastructureUnavailable(exception)) {
+      this.logger.warn(
+        `Dependency unavailable on ${request.method} ${path}: ${exception instanceof Error ? exception.message : 'unknown'}`,
       );
+      response
+        .status(HttpStatus.SERVICE_UNAVAILABLE)
+        .json({ code: 'SERVICE_UNAVAILABLE', message: 'Service unavailable' });
+      return;
     }
 
-    response.status(status).json({
-      statusCode: status,
-      message,
-      error: statusReason(status),
-      ...(errors ? { errors } : {}),
-    });
+    this.logger.error(
+      `Unhandled exception on ${request.method} ${path}`,
+      exception instanceof Error ? exception.stack : undefined,
+    );
+    response
+      .status(HttpStatus.INTERNAL_SERVER_ERROR)
+      .json({ code: 'INTERNAL_ERROR', message: 'Internal server error' });
   }
 }

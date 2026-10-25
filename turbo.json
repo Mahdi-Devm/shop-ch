@@ -3,80 +3,56 @@
   "ui": "tui",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "dist/**", "!.next/cache/**", "!.next/dev/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**",
+        "!.next/cache/**",
+        "!.next/dev/**"
+      ],
       "env": [
         "NODE_ENV",
-        "PORT",
-        "POSTGRES_HOST",
-        "POSTGRES_PORT",
-        "POSTGRES_USER",
-        "POSTGRES_PASSWORD",
-        "POSTGRES_DB",
-        "REDIS_HOST",
-        "REDIS_PORT",
-        "REDIS_URL",
-        "REDIS_KEY",
-        "ROLES_KEY",
-        "DEV_OTP",
-        "ACCESS_TOKEN_SECRET",
-        "REFRESH_TOKEN_SECRET",
-        "CORS_ORIGIN"
+        "LOG_LEVEL",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_APP_URL"
       ]
     },
-
     "dev": {
       "cache": false,
       "persistent": true
     },
-
     "lint": {
-      "dependsOn": ["^lint"],
+      "dependsOn": [
+        "^lint"
+      ],
       "env": [
         "NODE_ENV",
-        "PORT",
-        "POSTGRES_HOST",
-        "POSTGRES_PORT",
-        "POSTGRES_USER",
-        "POSTGRES_PASSWORD",
-        "POSTGRES_DB",
-        "REDIS_HOST",
-        "REDIS_PORT",
-        "REDIS_URL",
-        "REDIS_KEY",
-        "ROLES_KEY",
-        "DEV_OTP",
-        "ACCESS_TOKEN_SECRET",
-        "REFRESH_TOKEN_SECRET",
-        "CORS_ORIGIN"
+        "LOG_LEVEL",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_APP_URL"
       ]
     },
-
     "check-types": {
-      "dependsOn": ["^check-types"],
+      "dependsOn": [
+        "^check-types"
+      ],
       "env": [
         "NODE_ENV",
-        "PORT",
-        "POSTGRES_HOST",
-        "POSTGRES_PORT",
-        "POSTGRES_USER",
-        "POSTGRES_PASSWORD",
-        "POSTGRES_DB",
-        "REDIS_HOST",
-        "REDIS_PORT",
-        "REDIS_URL",
-        "REDIS_KEY",
-        "ROLES_KEY",
-        "DEV_OTP",
-        "ACCESS_TOKEN_SECRET",
-        "REFRESH_TOKEN_SECRET",
-        "CORS_ORIGIN"
+        "LOG_LEVEL",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_APP_URL"
       ]
     },
-
     "test": {
-      "dependsOn": ["build"]
+      "dependsOn": [
+        "build"
+      ]
     }
   }
 }
