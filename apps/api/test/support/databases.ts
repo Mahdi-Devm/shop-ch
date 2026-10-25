@@ -1,9 +1,11 @@
 import { loadEnvironment } from '@common/config/load-environment';
+import { runMigrationsWithLock } from '@common/database/run-migrations-with-lock';
 import {
   createInventoryDataSourceOptions,
   inventoryDatabaseSettings,
 } from '@inventory/config/inventory-database.config';
 import { InventoryEnvironment } from '@inventory/config/inventory-environment';
+import { seedFlashSaleProduct } from '@inventory/seed/seed-flash-sale-product';
 import {
   createOrderDataSourceOptions,
   orderDatabaseSettings,
@@ -12,19 +14,19 @@ import { OrderEnvironment } from '@order/config/order-environment';
 import { DataSource } from 'typeorm';
 
 export async function connectInventoryDatabase(): Promise<DataSource> {
-  return new DataSource(
-    createInventoryDataSourceOptions(
-      inventoryDatabaseSettings(loadEnvironment(InventoryEnvironment)),
-    ),
-  ).initialize();
+  const options = createInventoryDataSourceOptions(
+    inventoryDatabaseSettings(loadEnvironment(InventoryEnvironment)),
+  );
+  await runMigrationsWithLock(options, seedFlashSaleProduct);
+  return new DataSource(options).initialize();
 }
 
 export async function connectOrderDatabase(): Promise<DataSource> {
-  return new DataSource(
-    createOrderDataSourceOptions(
-      orderDatabaseSettings(loadEnvironment(OrderEnvironment)),
-    ),
-  ).initialize();
+  const options = createOrderDataSourceOptions(
+    orderDatabaseSettings(loadEnvironment(OrderEnvironment)),
+  );
+  await runMigrationsWithLock(options);
+  return new DataSource(options).initialize();
 }
 
 export async function countRows(
