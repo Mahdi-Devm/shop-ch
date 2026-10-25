@@ -1,6 +1,12 @@
 import type { HealthIndicator } from '@common/health/health-indicator';
 import { HEALTH_INDICATORS } from '@common/health/health-indicator';
+import { Public } from '@common/auth/auth.decorators';
+import {
+  IP_THROTTLER,
+  USER_THROTTLER,
+} from '@common/throttling/throttler-names';
 import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 
 type HealthStatus = 'up' | 'down';
@@ -23,6 +29,8 @@ async function withTimeout(check: Promise<void>): Promise<void> {
   }
 }
 
+@Public()
+@SkipThrottle({ [IP_THROTTLER]: true, [USER_THROTTLER]: true })
 @Controller('health')
 export class HealthController {
   constructor(
