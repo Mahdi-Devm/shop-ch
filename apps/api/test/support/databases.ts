@@ -70,3 +70,50 @@ export async function resetInventory(
     [productId],
   );
 }
+
+export async function resetOrderDatabase(
+  dataSource: DataSource,
+): Promise<void> {
+  await dataSource.query(
+    'TRUNCATE orders, idempotency_keys, outbox_events, processed_events',
+  );
+}
+
+export async function setFlashSaleStock(
+  inventory: DataSource,
+  order: DataSource,
+  productId: string,
+  stock: number,
+): Promise<void> {
+  await inventory.query(
+    'TRUNCATE reservations, processed_events, outbox_events',
+  );
+  const [rows]: [{ version: number }[], number] = await inventory.query(
+    `UPDATE products
+        SET initial_stock = $2, stock = $2, reserved = 0, sold = 0,
+            version = version + 1000
+      WHERE id = $1
+      RETURNING version`,
+    [productId, stock],
+  );
+  const version = rows[0]?.version;
+  if (version === undefined) {
+    throw new Error(`Product ${productId} not found`);
+  }
+  await order.query(
+    `INSERT INTO product_stock_view (product_id, stock, reserved, version)
+     VALUES ($1, $2, 0, $3)
+     ON CONFLICT (product_id) DO UPDATE
+       SET stock = EXCLUDED.stock, reserved = 0, version = EXCLUDED.version`,
+    [productId, stock, version],
+  );
+}
+
+export async function countOrdersByStatus(
+  dataSource: DataSource,
+): Promise<Record<string, number>> {
+  const rows: { status: string; count: string }[] = await dataSource.query(
+    'SELECT status, count(*) FROM orders GROUP BY status',
+  );
+  return Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
+}
