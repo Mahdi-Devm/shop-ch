@@ -9,6 +9,7 @@ import {
 } from './config/inventory-database.config';
 import { InventoryEnvironment } from './config/inventory-environment';
 import { InventoryAppModule } from './inventory-app.module';
+import { seedFlashSaleProduct } from './seed/seed-flash-sale-product';
 
 async function bootstrap(): Promise<void> {
   Logger.overrideLogger(createLogger('inventory'));
@@ -16,6 +17,7 @@ async function bootstrap(): Promise<void> {
 
   await runMigrationsWithLock(
     createInventoryDataSourceOptions(inventoryDatabaseSettings(environment)),
+    seedFlashSaleProduct,
   );
 
   const app = await createHttpService({
