@@ -4,6 +4,8 @@ import { ENV_FILE_PATHS } from '@common/config/env-file-paths';
 import { createEnvironmentValidator } from '@common/config/validate-environment';
 import { DatabaseHealthIndicator } from '@common/health/database.health-indicator';
 import { HealthModule } from '@common/health/health.module';
+import { MessagingModule } from '@common/messaging/messaging.module';
+import { RabbitMqHealthIndicator } from '@common/messaging/rabbitmq/rabbitmq.health-indicator';
 import { RequestLoggingMiddleware } from '@common/logging/request-logging.middleware';
 import { RedisHealthIndicator } from '@common/redis/redis.health-indicator';
 import { RedisModule } from '@common/redis/redis.module';
@@ -22,7 +24,11 @@ import {
   orderDatabaseSettingsFromConfig,
 } from './config/order-database.config';
 import { OrderEnvironment } from './config/order-environment';
+import { createOrderTopology } from './messaging/order-topology';
 import { AuthModule } from './modules/auth/auth.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { ProductsModule } from './modules/products/products.module';
 
 @Module({
   imports: [
@@ -44,8 +50,16 @@ import { AuthModule } from './modules/auth/auth.module';
     RedisModule,
     JwtAuthModule,
     ThrottlingModule,
-    HealthModule.register([DatabaseHealthIndicator, RedisHealthIndicator]),
+    MessagingModule.forRoot(createOrderTopology),
+    HealthModule.register([
+      DatabaseHealthIndicator,
+      RedisHealthIndicator,
+      RabbitMqHealthIndicator,
+    ]),
     AuthModule,
+    ProductsModule,
+    OrdersModule,
+    PaymentsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: IpThrottlerGuard },

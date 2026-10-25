@@ -1,11 +1,22 @@
 import type { PostgresConnectionSettings } from '@common/database/postgres-options';
 import { createPostgresOptions } from '@common/database/postgres-options';
 import type { ConfigService } from '@nestjs/config';
+import { ProcessedEventEntity } from '@common/messaging/inbox/processed-event.entity';
+import { OutboxEventEntity } from '@common/messaging/outbox/outbox-event.entity';
 import { join } from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
+import { IdempotencyKeyEntity } from '../modules/orders/entities/idempotency-key.entity';
+import { OrderEntity } from '../modules/orders/entities/order.entity';
+import { ProductStockViewEntity } from '../modules/products/entities/product-stock-view.entity';
 import type { OrderEnvironment } from './order-environment';
 
-export const ORDER_ENTITIES = [];
+export const ORDER_ENTITIES = [
+  OrderEntity,
+  IdempotencyKeyEntity,
+  ProductStockViewEntity,
+  OutboxEventEntity,
+  ProcessedEventEntity,
+];
 
 export function createOrderDataSourceOptions(
   settings: PostgresConnectionSettings,

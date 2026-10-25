@@ -1,6 +1,7 @@
 import { BaseEnvironment } from '@common/config/base-environment';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -59,4 +60,18 @@ export class OrderEnvironment extends BaseEnvironment {
   @IsInt()
   @Min(100)
   THROTTLE_TTL_MS = 1000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  RESERVATION_TTL_MS = 300000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  IDEMPOTENCY_KEY_TTL_HOURS = 24;
+
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  ENABLE_DEV_PAYMENT = false;
 }
