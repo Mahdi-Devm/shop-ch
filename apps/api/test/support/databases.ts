@@ -64,13 +64,18 @@ export async function resetInventory(
   dataSource: DataSource,
   productId: string,
 ): Promise<void> {
-  await dataSource.query(
-    'TRUNCATE reservations, processed_events, outbox_events',
-  );
-  await dataSource.query(
-    'UPDATE products SET stock = initial_stock, reserved = 0, sold = 0, version = 1 WHERE id = $1',
-    [productId],
-  );
+  await dataSource.transaction(async (manager) => {
+    await manager.query(
+      `UPDATE products
+          SET initial_stock = 500, stock = 500, reserved = 0, sold = 0,
+              version = 1
+        WHERE id = $1`,
+      [productId],
+    );
+    await manager.query('DELETE FROM reservations');
+    await manager.query('DELETE FROM processed_events');
+    await manager.query('DELETE FROM outbox_events');
+  });
 }
 
 export async function resetOrderDatabase(

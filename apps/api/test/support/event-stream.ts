@@ -22,9 +22,7 @@ export function openEventStream(
 
   return new Promise((resolve, reject) => {
     const events: StatusEvent[] = [];
-    let clientRequest: ClientRequest | undefined;
-
-    clientRequest = get(
+    const clientRequest: ClientRequest = get(
       {
         host: '127.0.0.1',
         port,
@@ -60,7 +58,7 @@ export function openEventStream(
           statusCode: response.statusCode ?? 0,
           events,
           ended,
-          close: () => clientRequest?.destroy(),
+          close: () => clientRequest.destroy(),
         });
       },
     );

@@ -11,12 +11,12 @@ import {
   connectInventoryDatabase,
   connectOrderDatabase,
   countRows,
+  orderStatus,
   resetOrderDatabase,
   setFlashSaleStock,
 } from './support/databases';
 import {
   FLASH_SALE_PRODUCT_ID,
-  getOrder,
   login,
   placeOrder,
   uniqueUser,
@@ -87,18 +87,14 @@ describe('Outbox recovery (e2e)', () => {
       'the relay to fail publishing at least twice',
     );
     expect((await outboxRowFor(orderId)).published_at).toBeNull();
-    expect((await getOrder(crashingReplica, token, orderId)).status).toBe(
-      'Pending',
-    );
+    expect(await orderStatus(orderDatabase, orderId)).toBe('Pending');
 
     await crashingReplica.close();
     const restartedReplica = await createOrderApp();
 
     try {
       await waitFor(
-        async () =>
-          (await getOrder(restartedReplica, token, orderId)).status ===
-          'Reserved',
+        async () => (await orderStatus(orderDatabase, orderId)) === 'Reserved',
         'the recovered order to be reserved by inventory',
       );
       expect((await outboxRowFor(orderId)).published_at).not.toBeNull();
