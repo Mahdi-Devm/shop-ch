@@ -74,9 +74,16 @@ export async function resetInventory(
 export async function resetOrderDatabase(
   dataSource: DataSource,
 ): Promise<void> {
-  await dataSource.query(
-    'TRUNCATE orders, idempotency_keys, outbox_events, processed_events',
-  );
+  await dataSource.transaction(async (manager) => {
+    for (const table of [
+      'orders',
+      'idempotency_keys',
+      'outbox_events',
+      'processed_events',
+    ]) {
+      await manager.query(`DELETE FROM ${table}`);
+    }
+  });
 }
 
 export async function setFlashSaleStock(
@@ -85,18 +92,20 @@ export async function setFlashSaleStock(
   productId: string,
   stock: number,
 ): Promise<void> {
-  await inventory.query(
-    'TRUNCATE reservations, processed_events, outbox_events',
-  );
-  const [rows]: [{ version: number }[], number] = await inventory.query(
-    `UPDATE products
-        SET initial_stock = $2, stock = $2, reserved = 0, sold = 0,
-            version = version + 1000
-      WHERE id = $1
-      RETURNING version`,
-    [productId, stock],
-  );
-  const version = rows[0]?.version;
+  const version = await inventory.transaction(async (manager) => {
+    const [rows]: [{ version: number }[], number] = await manager.query(
+      `UPDATE products
+          SET initial_stock = $2, stock = $2, reserved = 0, sold = 0,
+              version = version + 1000
+        WHERE id = $1
+        RETURNING version`,
+      [productId, stock],
+    );
+    await manager.query('DELETE FROM reservations');
+    await manager.query('DELETE FROM processed_events');
+    await manager.query('DELETE FROM outbox_events');
+    return rows[0]?.version;
+  });
   if (version === undefined) {
     throw new Error(`Product ${productId} not found`);
   }
