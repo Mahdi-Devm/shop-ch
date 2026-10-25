@@ -128,3 +128,14 @@ export async function countOrdersByStatus(
   );
   return Object.fromEntries(rows.map((row) => [row.status, Number(row.count)]));
 }
+
+export async function orderStatus(
+  dataSource: DataSource,
+  orderId: string,
+): Promise<string | undefined> {
+  const rows: { status: string }[] = await dataSource.query(
+    'SELECT status FROM orders WHERE id = $1',
+    [orderId],
+  );
+  return rows[0]?.status;
+}

@@ -26,7 +26,9 @@ export class TestBroker {
     const content = Buffer.from(
       typeof body === 'string' ? body : JSON.stringify(body),
     );
-    await this.channel.assertExchange(exchange, 'topic', { durable: true });
+    if (exchange !== '') {
+      await this.channel.assertExchange(exchange, 'topic', { durable: true });
+    }
     this.channel.publish(exchange, routingKey, content, { persistent: true });
     await this.channel.waitForConfirms();
   }
