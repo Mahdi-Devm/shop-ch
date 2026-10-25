@@ -1,3 +1,4 @@
+import { UUID_PATTERN } from '@common/validation/uuid-pattern';
 import { randomUUID } from 'node:crypto';
 
 export type IntegrationEvent<
@@ -13,9 +14,6 @@ export type IntegrationEvent<
 };
 
 export class InvalidIntegrationEventError extends Error {}
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createIntegrationEvent<TType extends string, TPayload>(
   fields: Pick<
