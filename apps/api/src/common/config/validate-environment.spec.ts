@@ -9,6 +9,8 @@ const validEnvironment = {
   POSTGRES_PORT: '15432',
   POSTGRES_DB: 'order_db',
   RABBITMQ_URL: 'amqp://guest:guest@localhost:5672',
+  REDIS_HOST: 'localhost',
+  REDIS_PORT: '6379',
 };
 
 describe('createEnvironmentValidator', () => {
