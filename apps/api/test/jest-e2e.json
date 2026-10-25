@@ -1,9 +1,5 @@
 {
-  "moduleFileExtensions": [
-    "js",
-    "json",
-    "ts"
-  ],
+  "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
@@ -26,5 +22,8 @@
     "reflect-metadata",
     "<rootDir>/support/load-test-environment.ts"
   ],
-  "testTimeout": 180000
+  "testTimeout": 180000,
+  "transformIgnorePatterns": [
+    "node_modules/(?!\\.pnpm/promise-breaker|promise-breaker)"
+  ]
 }
