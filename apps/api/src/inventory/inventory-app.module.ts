@@ -1,3 +1,5 @@
+import { JwtAuthGuard } from '@common/auth/jwt-auth.guard';
+import { JwtAuthModule } from '@common/auth/jwt-auth.module';
 import { ENV_FILE_PATHS } from '@common/config/env-file-paths';
 import { createEnvironmentValidator } from '@common/config/validate-environment';
 import { DatabaseHealthIndicator } from '@common/health/database.health-indicator';
@@ -6,6 +8,7 @@ import { RequestLoggingMiddleware } from '@common/logging/request-logging.middle
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   createInventoryDataSourceOptions,
@@ -32,8 +35,10 @@ import { InventoryEnvironment } from './config/inventory-environment';
         retryDelay: 3000,
       }),
     }),
+    JwtAuthModule,
     HealthModule.register([DatabaseHealthIndicator]),
   ],
+  providers: [{ provide: APP_GUARD, useExisting: JwtAuthGuard }],
 })
 export class InventoryAppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
