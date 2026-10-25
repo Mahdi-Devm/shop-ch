@@ -1,24 +1,26 @@
 {
   "name": "api",
   "version": "0.0.1",
-  "description": "",
+  "description": "Flash sale Order and Inventory services",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "seed": "ts-node -r tsconfig-paths/register src/seed/seed.ts",
+    "dev": "nest start --watch --entryFile order/main",
+    "dev:inventory": "nest start --watch --entryFile inventory/main --preserveWatchOutput",
+    "start:order": "node dist/order/main",
+    "start:inventory": "node dist/inventory/main",
+    "lint": "eslint \"{src,test}/**/*.ts\" --max-warnings 0",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "seed": "ts-node -r tsconfig-paths/register src/inventory/seed/seed.ts",
+    "migration:generate:order": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -p -d src/order/config/order.data-source.ts",
+    "migration:generate:inventory": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -p -d src/inventory/config/inventory.data-source.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json --forceExit"
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand"
   },
   "dependencies": {
     "@nest-lab/throttler-storage-redis": "^1.2.0",
@@ -81,13 +83,17 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-      "^@auth/(.*)$": "<rootDir>/modules/auth/$1",
-      "^@common/(.*)$": "<rootDir>/common/$1"
+      "^@common/(.*)$": "<rootDir>/common/$1",
+      "^@order/(.*)$": "<rootDir>/order/$1",
+      "^@inventory/(.*)$": "<rootDir>/inventory/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "setupFiles": [
+      "reflect-metadata"
+    ]
   }
 }
