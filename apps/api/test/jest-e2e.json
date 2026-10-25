@@ -1,0 +1,30 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/tsconfig.e2e.json"
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^@common/(.*)$": "<rootDir>/../src/common/$1",
+    "^@order/(.*)$": "<rootDir>/../src/order/$1",
+    "^@inventory/(.*)$": "<rootDir>/../src/inventory/$1"
+  },
+  "globalSetup": "<rootDir>/support/global-setup.ts",
+  "globalTeardown": "<rootDir>/support/global-teardown.ts",
+  "setupFiles": [
+    "reflect-metadata",
+    "<rootDir>/support/load-test-environment.ts"
+  ],
+  "testTimeout": 180000
+}
