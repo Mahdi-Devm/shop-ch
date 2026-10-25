@@ -38,7 +38,13 @@ export class RabbitMqConnection implements OnModuleInit, OnApplicationShutdown {
   }
 
   createChannel(options: CreateChannelOpts): ChannelWrapper {
-    return this.connectionManager().createChannel(options);
+    const channel = this.connectionManager().createChannel(options);
+    channel.on('error', (error: unknown) =>
+      this.logger.warn(
+        `Channel ${options.name ?? 'unnamed'} error: ${error instanceof Error ? error.message : 'unknown error'}`,
+      ),
+    );
+    return channel;
   }
 
   isConnected(): boolean {
