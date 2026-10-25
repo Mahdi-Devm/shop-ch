@@ -7,15 +7,24 @@ import { RabbitMqHealthIndicator } from '@common/messaging/rabbitmq/rabbitmq.hea
 import { RabbitMqPublisher } from '@common/messaging/rabbitmq/rabbitmq.publisher';
 import type { DynamicModule } from '@nestjs/common';
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Module({})
 export class MessagingModule {
-  static forRoot(topology: TopologySetup): DynamicModule {
+  static forRoot<TEnvironment extends object>(
+    createTopology: (
+      configService: ConfigService<TEnvironment, true>,
+    ) => TopologySetup,
+  ): DynamicModule {
     return {
       module: MessagingModule,
       global: true,
       providers: [
-        { provide: MESSAGING_TOPOLOGY, useValue: topology },
+        {
+          provide: MESSAGING_TOPOLOGY,
+          inject: [ConfigService],
+          useFactory: createTopology,
+        },
         RabbitMqConnection,
         RabbitMqPublisher,
         RabbitMqConsumer,

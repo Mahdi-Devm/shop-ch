@@ -1,3 +1,4 @@
+import type { ConsumerQueueDefinition } from '@common/messaging/rabbitmq/queue-topology';
 import type { IntegrationEvent } from './integration-event';
 
 export const ORDER_EVENTS_EXCHANGE = 'order.events';
@@ -33,6 +34,21 @@ export const STOCK_EVENT_ROUTING_KEYS: Record<StockEventType, string> = {
   [StockEventType.Released]: 'stock.released',
   [StockEventType.Committed]: 'stock.committed',
   [StockEventType.SnapshotPublished]: 'stock.snapshot-published',
+};
+
+export const STOCK_COMMANDS_QUEUE: ConsumerQueueDefinition = {
+  name: 'inventory.stock-commands',
+  bindings: Object.values(STOCK_COMMAND_ROUTING_KEYS).map((routingKey) => ({
+    exchange: ORDER_EVENTS_EXCHANGE,
+    routingKey,
+  })),
+  prefetch: 20,
+};
+
+export const STOCK_EVENTS_QUEUE: ConsumerQueueDefinition = {
+  name: 'order.inventory-events',
+  bindings: [{ exchange: INVENTORY_EVENTS_EXCHANGE, routingKey: 'stock.#' }],
+  prefetch: 50,
 };
 
 export type StockCommandPayload = {

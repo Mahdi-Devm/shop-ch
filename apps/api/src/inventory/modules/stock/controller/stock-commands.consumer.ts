@@ -1,9 +1,11 @@
-import { isStockCommand } from '@common/messaging/contracts/stock-events';
+import {
+  isStockCommand,
+  STOCK_COMMANDS_QUEUE,
+} from '@common/messaging/contracts/stock-events';
 import {
   NonRetryableMessageError,
   RabbitMqConsumer,
 } from '@common/messaging/rabbitmq/rabbitmq.consumer';
-import { STOCK_COMMANDS_QUEUE } from '@inventory/messaging/inventory-topology';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { StockReservationService } from '../service/stock-reservation.service';

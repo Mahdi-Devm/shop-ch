@@ -17,7 +17,7 @@ import {
   inventoryDatabaseSettingsFromConfig,
 } from './config/inventory-database.config';
 import { InventoryEnvironment } from './config/inventory-environment';
-import { inventoryTopology } from './messaging/inventory-topology';
+import { createInventoryTopology } from './messaging/inventory-topology';
 import { StockModule } from './modules/stock/stock.module';
 
 @Module({
@@ -40,7 +40,7 @@ import { StockModule } from './modules/stock/stock.module';
       }),
     }),
     JwtAuthModule,
-    MessagingModule.forRoot(inventoryTopology),
+    MessagingModule.forRoot(createInventoryTopology),
     HealthModule.register([DatabaseHealthIndicator, RabbitMqHealthIndicator]),
     StockModule,
   ],
