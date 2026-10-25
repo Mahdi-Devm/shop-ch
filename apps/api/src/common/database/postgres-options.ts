@@ -24,6 +24,6 @@ export function createPostgresOptions(
     synchronize: false,
     migrationsRun: false,
     logging: ['error'],
-    extra: { max: CONNECTION_POOL_SIZE },
+    extra: { max: CONNECTION_POOL_SIZE, connectionTimeoutMillis: 5000 },
   };
 }
