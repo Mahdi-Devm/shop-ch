@@ -1,11 +1,20 @@
 import type { PostgresConnectionSettings } from '@common/database/postgres-options';
 import { createPostgresOptions } from '@common/database/postgres-options';
 import type { ConfigService } from '@nestjs/config';
+import { ProcessedEventEntity } from '@common/messaging/inbox/processed-event.entity';
+import { OutboxEventEntity } from '@common/messaging/outbox/outbox-event.entity';
 import { join } from 'node:path';
 import type { DataSourceOptions } from 'typeorm';
+import { ProductEntity } from '../modules/stock/entities/product.entity';
+import { ReservationEntity } from '../modules/stock/entities/reservation.entity';
 import type { InventoryEnvironment } from './inventory-environment';
 
-export const INVENTORY_ENTITIES = [];
+export const INVENTORY_ENTITIES = [
+  ProductEntity,
+  ReservationEntity,
+  OutboxEventEntity,
+  ProcessedEventEntity,
+];
 
 export function createInventoryDataSourceOptions(
   settings: PostgresConnectionSettings,

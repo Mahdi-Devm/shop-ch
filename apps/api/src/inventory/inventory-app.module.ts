@@ -4,6 +4,8 @@ import { ENV_FILE_PATHS } from '@common/config/env-file-paths';
 import { createEnvironmentValidator } from '@common/config/validate-environment';
 import { DatabaseHealthIndicator } from '@common/health/database.health-indicator';
 import { HealthModule } from '@common/health/health.module';
+import { MessagingModule } from '@common/messaging/messaging.module';
+import { RabbitMqHealthIndicator } from '@common/messaging/rabbitmq/rabbitmq.health-indicator';
 import { RequestLoggingMiddleware } from '@common/logging/request-logging.middleware';
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { Module } from '@nestjs/common';
@@ -15,6 +17,8 @@ import {
   inventoryDatabaseSettingsFromConfig,
 } from './config/inventory-database.config';
 import { InventoryEnvironment } from './config/inventory-environment';
+import { inventoryTopology } from './messaging/inventory-topology';
+import { StockModule } from './modules/stock/stock.module';
 
 @Module({
   imports: [
@@ -36,7 +40,9 @@ import { InventoryEnvironment } from './config/inventory-environment';
       }),
     }),
     JwtAuthModule,
-    HealthModule.register([DatabaseHealthIndicator]),
+    MessagingModule.forRoot(inventoryTopology),
+    HealthModule.register([DatabaseHealthIndicator, RabbitMqHealthIndicator]),
+    StockModule,
   ],
   providers: [{ provide: APP_GUARD, useExisting: JwtAuthGuard }],
 })
